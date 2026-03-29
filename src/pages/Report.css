@@ -1,0 +1,132 @@
+.report-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+@media (max-width: 1024px) {
+  .report-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .report-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.report-header {
+  margin-bottom: 2rem;
+}
+
+.report-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.flow-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.flow-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem;
+  background-color: var(--color-bg);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+}
+
+.flow-item.error {
+  border-color: var(--color-error);
+  background-color: var(--color-error-bg);
+}
+
+.issue-alert {
+  padding: 1rem;
+  border-radius: var(--radius-sm);
+  background-color: var(--color-error-bg);
+  border: 1px solid var(--color-error);
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.issue-icon {
+  color: var(--color-error);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.issue-content h4 {
+  color: var(--color-error);
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+
+.issue-content p {
+  color: var(--color-text-primary);
+  font-size: 0.875rem;
+}
+
+.fix-card {
+  background-color: var(--color-success-bg);
+  border: 1px solid var(--color-success);
+  border-radius: var(--radius-sm);
+  padding: 1rem;
+}
+.fix-card h4 {
+  color: var(--color-success);
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+
+/* Common List style for Notifications */
+.list-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.list-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  border-radius: var(--radius-sm);
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-sm);
+}
+.list-item-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.list-item-icon.warning { background-color: var(--color-warning-bg); color: var(--color-warning); }
+.list-item-icon.error { background-color: var(--color-error-bg); color: var(--color-error); }
+
+.list-item-content {
+  flex-grow: 1;
+}
+.list-item-title {
+  font-weight: 500;
+  color: var(--color-text-primary);
+}
+.list-item-time {
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+}
