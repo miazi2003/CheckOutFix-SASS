@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X } from 'lucide-react';
 import { Input } from '../ui/Input';
 import { Button } from '../ui/Button';
+import { API_BASE } from '../../config';
 
 export function AddStoreModal({ isOpen, onClose, onSave }) {
   const [url, setUrl] = useState('');
@@ -18,7 +19,7 @@ export function AddStoreModal({ isOpen, onClose, onSave }) {
     setError(null);
 
     try {
-      const res = await fetch('/api/stores', {
+      const res = await fetch(`${API_BASE}/stores`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',

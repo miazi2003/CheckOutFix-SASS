@@ -5,6 +5,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/Card'
 import { Badge } from '../components/ui/Badge';
 import { AlertCircle, CheckCircle2, XCircle, ArrowLeft, Zap, Globe, RefreshCw } from 'lucide-react';
 import { Button } from '../components/ui/Button';
+import { API_BASE } from '../config';
 import './Report.css';
 
 export default function Report() {
@@ -16,7 +17,7 @@ export default function Report() {
 
   const fetchHistory = async () => {
     try {
-      const res = await fetch(`/api/scan/${id}`, {
+      const res = await fetch(`${API_BASE}/scan/${id}`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('checkoutfix_token')}`
         }
@@ -51,7 +52,7 @@ export default function Report() {
     setIsScanning(true);
     const scanToast = toast.loading('Running full checkout automation scan...', { duration: Infinity });
     try {
-      const res = await fetch('/api/scan', {
+      const res = await fetch(`${API_BASE}/scan`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',

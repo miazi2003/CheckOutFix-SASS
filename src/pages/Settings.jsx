@@ -4,6 +4,7 @@ import Swal from 'sweetalert2';
 import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/Card';
 import { Input } from '../components/ui/Input';
 import { Button } from '../components/ui/Button';
+import { API_BASE } from '../config';
 
 export default function Settings() {
   const [email, setEmail] = useState('');
@@ -20,7 +21,7 @@ export default function Settings() {
 
     const fetchProfile = async () => {
       try {
-        const res = await fetch(`/api/users/${userId}`, {
+        const res = await fetch(`${API_BASE}/users/${userId}`, {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('checkoutfix_token')}`
           }
@@ -55,7 +56,7 @@ export default function Settings() {
     const saveToast = toast.loading('Updating profile...');
     
     try {
-      const res = await fetch(`/api/users/${userId}`, {
+      const res = await fetch(`${API_BASE}/users/${userId}`, {
         method: 'PUT',
         headers: { 
           'Content-Type': 'application/json',
@@ -102,7 +103,7 @@ export default function Settings() {
     
     const delToast = toast.loading('Wiping account...');
     try {
-      const res = await fetch(`/api/users/${userId}`, { 
+      const res = await fetch(`${API_BASE}/users/${userId}`, { 
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('checkoutfix_token')}`

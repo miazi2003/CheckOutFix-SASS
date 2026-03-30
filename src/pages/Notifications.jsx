@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { AlertCircle, AlertTriangle, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Button } from '../components/ui/Button';
+import { API_BASE } from '../config';
 import './Report.css';
 
 export default function Notifications() {
@@ -11,7 +12,7 @@ export default function Notifications() {
 
   const fetchAlerts = async () => {
     try {
-      const res = await fetch('/api/scan/alerts', {
+      const res = await fetch(`${API_BASE}/scan/alerts`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('checkoutfix_token')}`
         }
@@ -40,7 +41,7 @@ export default function Notifications() {
   const handleClearAll = async () => {
     const loadingToast = toast.loading('Clearing all notifications...');
     try {
-      const res = await fetch('/api/scan/alerts', {
+      const res = await fetch(`${API_BASE}/scan/alerts`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('checkoutfix_token')}`

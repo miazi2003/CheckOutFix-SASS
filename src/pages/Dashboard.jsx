@@ -4,6 +4,7 @@ import Swal from 'sweetalert2';
 import { Button } from '../components/ui/Button';
 import { StoreCard } from '../components/dashboard/StoreCard';
 import { AddStoreModal } from '../components/dashboard/AddStoreModal';
+import { API_BASE } from '../config';
 import '../components/dashboard/Dashboard.css';
 
 export default function Dashboard() {
@@ -14,7 +15,7 @@ export default function Dashboard() {
 
   const fetchStores = async () => {
     try {
-      const res = await fetch('/api/stores', {
+      const res = await fetch(`${API_BASE}/stores`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('checkoutfix_token')}`
         }
@@ -58,7 +59,7 @@ export default function Dashboard() {
     
     const loadingToast = toast.loading('Deleting store...');
     try {
-      const res = await fetch(`/api/stores/${id}`, { 
+      const res = await fetch(`${API_BASE}/stores/${id}`, { 
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('checkoutfix_token')}`
