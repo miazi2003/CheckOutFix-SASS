@@ -97,7 +97,7 @@ export default function Report() {
           <h1 className="report-title">
             Store Report
             <Badge status={reportData.status === 'healthy' ? 'success' : reportData.status === 'warning' ? 'warning' : 'error'} className="ml-2">
-              {reportData.status.toUpperCase()}
+              {reportData.status === 'issue' ? 'WARNING' : reportData.status.toUpperCase()}
             </Badge>
           </h1>
           <div className="text-secondary" style={{ fontSize: '0.875rem', marginTop: '0.5rem' }}>Latest scan: {new Date(reportData.createdAt).toLocaleString()}</div>

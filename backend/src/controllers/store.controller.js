@@ -28,9 +28,23 @@ exports.createStore = async (req, res) => {
 
 exports.getStores = async (req, res) => {
   try {
-    // For now returning all stores. With Auth, filter by req.user._id
-    const stores = await Store.find().sort({ createdAt: -1 });
-    res.status(200).json({ stores });
+    const stores = await Store.find().sort({ createdAt: -1 }).lean();
+    
+    // Attach the latest scan result to each store
+    const ScanResult = require('../models/scanResult.model');
+    
+    const storesWithStatus = await Promise.all(stores.map(async (store) => {
+      const latestScan = await ScanResult.findOne({ storeId: store._id })
+                                          .sort({ createdAt: -1 })
+                                          .lean();
+      return {
+        ...store,
+        latestStatus: latestScan ? latestScan.status : 'no_data',
+        lastChecked: latestScan ? latestScan.createdAt : store.createdAt
+      };
+    }));
+
+    res.status(200).json({ stores: storesWithStatus });
   } catch (err) {
     console.error('Get stores error:', err);
     res.status(500).json({ error: 'Server error fetching stores' });

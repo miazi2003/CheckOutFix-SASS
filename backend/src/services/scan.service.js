@@ -12,116 +12,213 @@ exports.runStoreScan = async (url) => {
 
   let browser;
 
-  // Add protocol if missing
-  const fullUrl = url.startsWith('http') ? url : `https://${url}`;
+  // 1. Normalize URL
+  let fullUrl = url.trim();
+  if (!fullUrl.startsWith('http')) fullUrl = `https://${fullUrl}`;
+  if (fullUrl.endsWith('/')) fullUrl = fullUrl.slice(0, -1);
+
+  console.log(`[SCAN-ENGINE] Starting high-precision scan: ${fullUrl}`);
 
   try {
-    browser = await chromium.launch({ headless: true });
-    const context = await browser.newContext();
+    browser = await chromium.launch({ 
+      headless: true,
+      args: [
+        '--no-sandbox', 
+        '--disable-setuid-sandbox', 
+        '--disable-blink-features=AutomationControlled',
+        '--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
+      ]
+    });
+    
+    const context = await browser.newContext({
+      viewport: { width: 1440, height: 900 },
+      deviceScaleFactor: 1,
+    });
+    
     const page = await context.newPage();
 
-    // 1. Measure load time
+    // --- STEP 1: INITIAL LOAD ---
     const startTime = Date.now();
     try {
-      await page.goto(fullUrl, { waitUntil: 'domcontentloaded', timeout: 15000 });
+      const response = await page.goto(fullUrl, { waitUntil: 'networkidle', timeout: 30000 });
       result.loadTime = (Date.now() - startTime) / 1000;
       
-      if (result.loadTime > 5) {
+      if (response.status() >= 400) {
+        result.status = 'broken';
+        result.issues.push(`Site returned error status: ${response.status()}`);
+        return result;
+      }
+
+      if (page.url().includes('/password')) {
         result.status = 'warning';
-        result.issues.push(`Slow page load: ${result.loadTime.toFixed(1)}s`);
+        result.issues.push('Store is password protected (Maintenance Mode)');
+        return result;
       }
     } catch (e) {
-      result.status = 'broken';
-      result.issues.push('Failed to load store URL');
-      return result; // Exit early if we can't even load the page
+      result.status = 'issue';
+      result.issues.push('Initial connection timeout or DNS failure');
+      return result;
     }
 
-    // Since this is a generic bot dealing with unknown store structures, 
-    // it uses broad selectors as examples.
-    // In reality, this requires platform-specific selectors (Shopify, WooCommerce, etc).
-
-    // 2. Find Product Page
+    // --- STEP 2: PRODUCT DISCOVERY ---
     try {
-      // Find ANY link that looks remotely like a product or image
-      const productLink = await page.locator('a[href*="/product"], a[href*="/p/"], .product a, form[action*="/cart"] > a, a > img').first();
+      // Shopify priority: specific /products/ path
+      const productLink = page.locator('a[href*="/products/"]').first();
+      
       if (await productLink.isVisible({ timeout: 5000 })) {
-        // Try forcing navigation without waiting for the click animation if blocked by cookie banners
-        const href = await productLink.getAttribute('href');
-        if (href) {
-          await page.goto(href.startsWith('http') ? href : `${fullUrl}${href}`, { waitUntil: 'domcontentloaded' });
-        } else {
-          await productLink.click({ force: true });
-        }
-        await page.waitForLoadState('domcontentloaded');
-        result.productPage = true;
+        await productLink.click({ force: true });
       } else {
-        result.issues.push('Could not find any product or image links on the homepage.');
+        // Universal fallback
+        console.log('[SCAN] No direct product link, checking collections/all');
+        await page.goto(`${fullUrl}/collections/all`, { waitUntil: 'networkidle' }).catch(() => {});
+        const fallbackLink = page.locator('a[href*="/products/"], a[href*="/product/"], .product-item a').first();
+        if (await fallbackLink.isVisible()) {
+          await fallbackLink.click({ force: true });
+        } else {
+          result.issues.push('Could not find any product to test (Shopify /products/ missing)');
+        }
+      }
+      
+      await page.waitForLoadState('domcontentloaded');
+      if (page.url().includes('/products/') || page.url().includes('/product/')) {
+        result.productPage = true;
       }
     } catch (e) {
-      result.issues.push('Failed navigating to a product page. A popup or anti-bot screen might be blocking the view.');
+      result.issues.push('Failed to navigate to a product page');
     }
 
-    // 3. Add to Cart (Loose Regex Matching)
+    // --- STEP 3: ADD TO CART (WITH VARIANT HANDLING) ---
     if (result.productPage) {
       try {
-        const addToCartBtn = page.getByRole('button', { name: /(add to cart|add to bag|buy now|add)/i }).first();
-        if (await addToCartBtn.isVisible({ timeout: 5000 })) {
-          await addToCartBtn.click({ force: true }); // force true ignores overlapping cookie popups
-          await page.waitForTimeout(3000); // Wait for cart animations
-          result.addToCart = true;
-        } else {
-          // Fallback check
-          const fallbackBtn = page.locator('button[name="add"], button:has-text("🛒")').first();
-          if (await fallbackBtn.isVisible()) {
-             await fallbackBtn.click({ force: true });
-             result.addToCart = true;
-          } else {
-             result.issues.push('Add to Cart button was completely missing from the product view.');
+        // Handle variant selection (if ATC is disabled)
+        const selectors = ['button[name="add"]', '#AddToCart', '.add-to-cart', 'button:has-text("Add to Cart")'];
+        let atcBtn = null;
+        
+        for (const sel of selectors) {
+          const btn = page.locator(sel).first();
+          if (await btn.isVisible()) {
+            atcBtn = btn;
+            break;
           }
         }
+
+        if (atcBtn) {
+          // Check if button is disabled (often requires selecting a size/color)
+          const isDisabled = await atcBtn.isDisabled();
+          if (isDisabled) {
+             console.log('[SCAN] ATC button disabled, attempting variant selection');
+             const variantOptions = page.locator('select, .swatch-element, .variant-input').first();
+             if (await variantOptions.isVisible()) {
+               await variantOptions.click();
+               await page.waitForTimeout(1000);
+             }
+          }
+
+          await atcBtn.click({ force: true });
+          
+          // --- VERIFICATION: THE SOURCE OF TRUTH ---
+          // We wait for the network to settle and then check the internal Shopify Cart API
+          await page.waitForTimeout(4000); 
+          
+          let cartVerified = false;
+          try {
+            // Method 1: Shopify internal API check (Most reliable for Shopify)
+            const cartData = await page.evaluate(async () => {
+              try {
+                const response = await fetch('/cart.js');
+                return await response.json();
+              } catch (e) { return null; }
+            });
+
+            if (cartData && cartData.item_count > 0) {
+              console.log(`[SCAN] Cart API Verified: ${cartData.item_count} items found.`);
+              cartVerified = true;
+            } 
+            
+            // Method 2: URL check (If it redirected to /cart)
+            if (!cartVerified && page.url().includes('/cart')) {
+              cartVerified = true;
+            }
+
+            // Method 3: Semantic check (Look for '1' or 'Item' in header cart icons)
+            if (!cartVerified) {
+              const cartSelectors = ['.cart-count', '#CartCount', '.header__cart-count', '[data-cart-count]'];
+              for (const sel of cartSelectors) {
+                const countText = await page.locator(sel).first().innerText().catch(() => "");
+                if (parseInt(countText.replace(/\D/g, "")) > 0) {
+                  cartVerified = true;
+                  break;
+                }
+              }
+            }
+          } catch (verifyErr) {
+            console.log('[SCAN] Verification check skipped or failed, falling back to basic visibility');
+          }
+
+          if (cartVerified) {
+            result.addToCart = true;
+          } else {
+            // Final check: Just go to the cart page and see if it is empty
+            await page.goto(`${new URL(page.url()).origin}/cart`, { waitUntil: 'networkidle' });
+            const bodyText = await page.innerText('body');
+            const isEmpty = bodyText.toLowerCase().includes('your cart is empty') || bodyText.toLowerCase().includes('cart is currently empty');
+            
+            if (!isEmpty) {
+              result.addToCart = true;
+            } else {
+              result.issues.push('Clicked Add to Cart, but the cart remained empty (Verified via API & Cart Page)');
+            }
+          }
+        } else {
+          result.issues.push('Add to Cart button [name="add"] not found on product page');
+        }
       } catch (e) {
-        result.issues.push('Failed to interact with the Add to Cart button.');
+        result.issues.push('Error during Add to Cart interaction');
       }
     }
 
-    // 4. Click Checkout (Loose Regex Matching)
+    // --- STEP 4: CHECKOUT VERIFICATION ---
     if (result.addToCart) {
       try {
-        let checkoutBtn = page.getByRole('button', { name: /(checkout|check out|secure checkout|pay now)/i }).first();
-        let checkoutLink = page.locator('a[href*="checkout"]').first();
-
-        if (!(await checkoutBtn.isVisible({ timeout: 2000 })) && !(await checkoutLink.isVisible({ timeout: 500 }))) {
-           // Explicitly force navigation to cart if no side-cart is visible
-           await page.goto(`${fullUrl}/cart`, { waitUntil: 'domcontentloaded' });
-           checkoutBtn = page.getByRole('button', { name: /(checkout|check out|pay)/i }).first();
-           checkoutLink = page.locator('a[href*="checkout"], input[name="checkout"]').first();
+        // Force navigation to /cart to be certain
+        if (!page.url().includes('/cart')) {
+          await page.goto(`${new URL(page.url()).origin}/cart`, { waitUntil: 'networkidle' });
         }
 
-        if (await checkoutBtn.isVisible({ timeout: 5000 }) || await checkoutLink.isVisible({ timeout: 5000 })) {
-          // Instead of actually clicking it (which often triggers Stripe/Shopify bot detection)
-          // we merely verify it exists and is clickable! This prevents false failure reports!
-          result.checkoutPage = true;
+        const checkoutBtn = page.locator('button[name="checkout"], [href*="/checkout"], .checkout-button').first();
+        
+        if (await checkoutBtn.isVisible({ timeout: 5000 })) {
+          // Verification: Check if it's disabled
+          if (await checkoutBtn.isDisabled()) {
+            result.issues.push('Checkout button found but it is currently disabled');
+          } else {
+            result.checkoutPage = true;
+          }
         } else {
-          result.issues.push('Checkout button not visible anywhere on the Cart or Slide-out.');
+          result.issues.push('Checkout button not found on the Cart page');
         }
       } catch (e) {
-        result.issues.push('Failed finding the checkout route.');
+        result.issues.push('Failed to verify checkout availability');
       }
     }
 
-    // Final Status Determination
+    // Final Determination
     if (!result.checkoutPage || !result.addToCart || !result.productPage) {
-      result.status = 'broken';
+      if (result.status === 'healthy') result.status = 'issue';
     }
 
+    console.log(`[SCAN-FINISHED] Store: ${fullUrl} | Status: ${result.status.toUpperCase()}`);
+
   } catch (error) {
-    result.status = 'broken';
-    result.issues.push(`Critical Bot Error: ${error.message}`);
+    console.error(`[SCAN-CRASH] ${error.message}`);
+    result.status = 'issue';
+    result.issues.push(`Engine Error: ${error.message}`);
   } finally {
-    if (browser) {
-      await browser.close();
-    }
+    if (browser) await browser.close();
   }
 
   return result;
 };
+
+
+

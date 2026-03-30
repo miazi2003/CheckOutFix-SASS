@@ -8,7 +8,7 @@ const scanResultSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['healthy', 'warning', 'broken'],
+    enum: ['healthy', 'warning', 'issue'],
     required: true
   },
   loadTime: {
@@ -29,7 +29,11 @@ const scanResultSchema = new mongoose.Schema({
   },
   issues: [{
     type: String
-  }]
+  }],
+  dismissed: {
+    type: Boolean,
+    default: false
+  }
 }, { timestamps: true });
 
 module.exports = mongoose.model('ScanResult', scanResultSchema);

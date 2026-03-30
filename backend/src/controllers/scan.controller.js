@@ -27,8 +27,8 @@ exports.runScan = async (req, res) => {
     
     await scanRecord.save();
 
-    // Trigger email alert if broken
-    if (result.status === 'broken') {
+    // Trigger email alert if status is 'issue'
+    if (result.status === 'issue') {
       await emailService.sendAlertEmail(store, result);
     }
 
@@ -60,13 +60,30 @@ exports.getScanHistory = async (req, res) => {
 
 exports.getAlerts = async (req, res) => {
   try {
-    const alerts = await ScanResult.find({ status: { $in: ['broken', 'warning'] } })
+    const alerts = await ScanResult.find({ 
+                                     status: { $in: ['issue', 'warning'] },
+                                     dismissed: { $ne: true } 
+                                   })
                                    .sort({ createdAt: -1 })
-                                   .populate('storeId', 'url') // get the URL from Store collection
+                                   .populate('storeId', 'url') 
                                    .limit(50);
     res.status(200).json({ alerts });
   } catch (err) {
     console.error('Get alerts error:', err);
     res.status(500).json({ error: 'Server error while fetching alerts' });
+  }
+};
+
+exports.clearAlerts = async (req, res) => {
+  try {
+    // Mark all undismissed alerts as dismissed
+    await ScanResult.updateMany(
+      { status: { $in: ['issue', 'warning'] }, dismissed: { $ne: true } },
+      { $set: { dismissed: true } }
+    );
+    res.status(200).json({ message: 'All notifications cleared' });
+  } catch (err) {
+    console.error('Clear alerts error:', err);
+    res.status(500).json({ error: 'Server error while clearing alerts' });
   }
 };

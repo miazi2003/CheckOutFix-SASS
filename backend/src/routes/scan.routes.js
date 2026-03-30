@@ -5,6 +5,7 @@ const authGuard = require('../middleware/auth.middleware');
 
 router.post('/', authGuard, scanController.runScan);
 router.get('/alerts', authGuard, scanController.getAlerts);
+router.delete('/alerts', authGuard, scanController.clearAlerts);
 router.get('/:storeId', authGuard, scanController.getScanHistory);
 
 module.exports = router;

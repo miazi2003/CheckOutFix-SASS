@@ -97,8 +97,8 @@ export default function Dashboard() {
           <StoreCard key={store._id} store={{
             id: store._id,
             url: store.url,
-            status: 'Healthy', // This will be dynamic once Scan API runs
-            lastChecked: new Date(store.createdAt).toLocaleDateString()
+            status: store.latestStatus || 'no_data',
+            lastChecked: new Date(store.lastChecked).toLocaleString()
           }} onDelete={handleDeleteStore} />
         ))}
       </div>
