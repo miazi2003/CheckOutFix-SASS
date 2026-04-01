@@ -1,15 +1,24 @@
 require('dotenv').config();
+
 const app = require('./app');
 const connectDB = require('./src/config/db');
-const { initCronJobs } = require('./src/jobs/scan.job');
 
-const PORT = process.env.PORT || 5000;
-connectDB().then(() => {
-  app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
-    initCronJobs();
-  });
-}).catch(err => {
-  console.error('Failed to start server:', err.message);
-  process.exit(1);
-});
+// Connect DB once (important for serverless)
+let isConnected = false;
+
+const handler = async (req, res) => {
+  if (!isConnected) {
+    try {
+      await connectDB();
+      isConnected = true;
+      console.log("DB connected");
+    } catch (err) {
+      console.error("DB connection failed:", err.message);
+      return res.status(500).json({ error: "DB connection failed" });
+    }
+  }
+
+  return app(req, res); // 🔥 THIS is the key
+};
+
+module.exports = handler;
