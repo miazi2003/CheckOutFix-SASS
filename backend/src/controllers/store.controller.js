@@ -3,9 +3,8 @@ const Store = require('../models/store.model');
 exports.createStore = async (req, res) => {
   try {
     const { url, alertEmail, scanFrequency } = req.body;
-    
-    // In a real app with JWT auth, req.user would hold the userId
-    // const userId = req.user._id;
+
+
 
     if (!url || !alertEmail) {
       return res.status(400).json({ error: 'URL and alertEmail are required' });
@@ -29,14 +28,14 @@ exports.createStore = async (req, res) => {
 exports.getStores = async (req, res) => {
   try {
     const stores = await Store.find().sort({ createdAt: -1 }).lean();
-    
+
     // Attach the latest scan result to each store
     const ScanResult = require('../models/scanResult.model');
-    
+
     const storesWithStatus = await Promise.all(stores.map(async (store) => {
       const latestScan = await ScanResult.findOne({ storeId: store._id })
-                                          .sort({ createdAt: -1 })
-                                          .lean();
+        .sort({ createdAt: -1 })
+        .lean();
       return {
         ...store,
         latestStatus: latestScan ? latestScan.status : 'no_data',
@@ -54,14 +53,14 @@ exports.getStores = async (req, res) => {
 exports.deleteStore = async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     // Ensure ID format is valid to prevent CastErrors
     if (!require('mongoose').Types.ObjectId.isValid(id)) {
       return res.status(400).json({ error: 'Invalid Store ID format' });
     }
 
     const deletedStore = await Store.findByIdAndDelete(id);
-    
+
     if (!deletedStore) {
       return res.status(404).json({ error: 'Store not found' });
     }
