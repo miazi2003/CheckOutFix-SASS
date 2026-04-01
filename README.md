@@ -1,16 +1,86 @@
-# React + Vite
+# CheckoutFix AI
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+This repo is split into two deployable apps:
 
-Currently, two official plugins are available:
+- frontend: Vite + React in the repo root
+- backend: Express API in `backend/`
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+Do not deploy the whole repo as a single Vercel project. Deploy the frontend and backend as two separate Vercel projects.
 
-## React Compiler
+## Local development
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+Frontend:
 
-## Expanding the ESLint configuration
+```bash
+npm install
+npm run dev
+```
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+Backend:
+
+```bash
+cd backend
+npm install
+npm run dev
+```
+
+Local URLs:
+
+- frontend: `http://localhost:5173`
+- backend: `http://localhost:5000`
+- health check: `http://localhost:5000/api/health`
+
+## Vercel deployment
+
+### Frontend project
+
+Create a Vercel project from the repo root.
+
+Settings:
+
+- Root Directory: `.`
+- Framework Preset: `Vite`
+- Build Command: `npm run build`
+- Output Directory: `dist`
+
+Frontend environment variables:
+
+- `VITE_API_BASE_URL=https://your-backend-project.vercel.app/api`
+
+### Backend project
+
+Create a second Vercel project from the same Git repo.
+
+Settings:
+
+- Root Directory: `backend`
+- Framework Preset: `Other`
+
+Backend environment variables:
+
+- `MONGO_URI=...`
+- `JWT_SECRET=...`
+- `EMAIL_USER=...`
+- `EMAIL_PASS=...`
+- `CORS_ORIGINS=http://localhost:5173,http://127.0.0.1:5173,https://your-frontend-project.vercel.app`
+
+Backend health check after deploy:
+
+- `https://your-backend-project.vercel.app/api/health`
+
+## Important deployment notes
+
+- The frontend production build now requires `VITE_API_BASE_URL`. If it is missing, the build fails intentionally.
+- The backend Vercel entrypoint is `backend/api/index.js`.
+- The backend allows only origins listed in `CORS_ORIGINS`.
+
+## Limitation
+
+The authentication and CRUD APIs fit Vercel. The scan engine and cron-based jobs are not a good fit for Vercel serverless because they use Playwright and scheduled background work.
+
+Files involved:
+
+- `backend/src/services/scan.service.js`
+- `backend/src/jobs/scan.job.js`
+
+If you want reliable scheduled scans in production, move that part to an always-on worker platform such as Railway, Render, or a VPS.
