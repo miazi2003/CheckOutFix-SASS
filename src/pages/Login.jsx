@@ -48,7 +48,7 @@ export default function Login() {
   return (
     <div className="auth-container">
       <div className="auth-card">
-        <h1 className="auth-logo">CheckoutFix AI</h1>
+        <h1 className="auth-logo">Scanivo</h1>
         <p className="auth-subtitle">Sign in to your account to continue</p>
         
         <form className="auth-form" onSubmit={handleLogin}>

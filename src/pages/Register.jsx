@@ -49,7 +49,7 @@ export default function Register() {
   return (
     <div className="auth-container">
       <div className="auth-card">
-        <h1 className="auth-logo">CheckoutFix AI</h1>
+        <h1 className="auth-logo">Scanivo</h1>
         <p className="auth-subtitle">Create a new account</p>
 
         <form className="auth-form" onSubmit={handleRegister}>

@@ -17,7 +17,7 @@ export function Sidebar({ isOpen, onClose }) {
       <aside className={`sidebar ${isOpen ? 'open' : ''}`}>
         <div className="sidebar-header">
           <div className="logo-box"></div>
-          <h1 className="logo-text">CheckoutFix AI</h1>
+          <h1 className="logo-text">Scanivo</h1>
         </div>
 
         <nav className="sidebar-nav">

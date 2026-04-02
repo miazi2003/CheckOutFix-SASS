@@ -30,7 +30,7 @@ const features = [
 
 const testimonials = [
   {
-    quote: 'CheckoutFix gave us visibility into failures that were quietly killing weekend revenue.',
+    quote: 'Scanivo gave us visibility into failures that were quietly killing weekend revenue.',
     name: 'Nadia Rahman',
     role: 'Growth Lead, Nova Commerce'
   },
@@ -88,7 +88,7 @@ export default function Home() {
       <header className="home-header">
         <Link to="/" className="home-brand">
           <span className="home-brand-mark">C</span>
-          <span>CheckoutFix AI</span>
+          <span>Scanivo</span>
         </Link>
 
         <nav className="home-nav">
@@ -114,7 +114,7 @@ export default function Home() {
             </div>
             <h1>Scan your store for free before checkout problems cost you revenue.</h1>
             <p>
-              CheckoutFix AI helps teams monitor checkout reliability, catch warning signals early, and move from blind debugging to confident operations.
+              Scanivo helps teams monitor checkout reliability, catch warning signals early, and move from blind debugging to confident operations.
             </p>
 
             <div className="home-hero-actions">
@@ -221,7 +221,7 @@ export default function Home() {
         <div>
           <div className="home-brand home-footer-brand">
             <span className="home-brand-mark">C</span>
-            <span>CheckoutFix AI</span>
+            <span>Scanivo</span>
           </div>
           <p>Monitoring, alerting, and operational visibility for ecommerce checkout flows.</p>
         </div>
