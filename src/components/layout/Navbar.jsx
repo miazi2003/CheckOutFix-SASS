@@ -8,11 +8,11 @@ export function Navbar({ toggleSidebar }) {
   
   const getPageTitle = () => {
     switch (location.pathname) {
-      case '/': return 'Dashboard';
-      case '/notifications': return 'Notifications';
-      case '/settings': return 'Settings';
+      case '/app': return 'Dashboard';
+      case '/app/notifications': return 'Notifications';
+      case '/app/settings': return 'Settings';
       default: 
-        if (location.pathname.startsWith('/report/')) return 'Report';
+        if (location.pathname.startsWith('/app/report/')) return 'Report';
         return '';
     }
   };

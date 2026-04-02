@@ -37,7 +37,7 @@ export default function Login() {
       localStorage.setItem('checkoutfix_token', data.token);
       persistUserPreferences(data.user || { theme: data.theme });
       toast.success('Welcome back!');
-      navigate('/');
+      navigate('/app');
     } catch (err) {
       toast.error(err.message);
     } finally {

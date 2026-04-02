@@ -43,7 +43,7 @@ export function StoreCard({ store, onDelete }) {
       </CardContent>
       <CardFooter>
         <div style={{ display: 'flex', gap: '0.5rem', width: '100%' }}>
-          <Link to={`/report/${store.id}`} style={{ flexGrow: 1 }}>
+          <Link to={`/app/report/${store.id}`} style={{ flexGrow: 1 }}>
             <Button variant="outline" fullWidth>View Report</Button>
           </Link>
           <Button variant="outline" onClick={() => onDelete && onDelete(store.id)} style={{ color: 'var(--color-error)', padding: '0 0.75rem' }}>

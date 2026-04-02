@@ -38,7 +38,7 @@ export default function Register() {
       localStorage.setItem('checkoutfix_token', data.token);
       persistUserPreferences(data.user || { theme: data.theme });
       toast.success('Account created successfully!');
-      navigate('/');
+      navigate('/app');
     } catch (err) {
       toast.error(err.message);
     } finally {

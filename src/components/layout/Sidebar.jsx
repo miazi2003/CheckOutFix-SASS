@@ -6,9 +6,9 @@ import './Layout.css';
 
 export function Sidebar({ isOpen, onClose }) {
   const navItems = [
-    { name: 'Dashboard', path: '/', icon: LayoutDashboard },
-    { name: 'Notifications', path: '/notifications', icon: Bell },
-    { name: 'Settings', path: '/settings', icon: Settings },
+    { name: 'Dashboard', path: '/app', icon: LayoutDashboard },
+    { name: 'Notifications', path: '/app/notifications', icon: Bell },
+    { name: 'Settings', path: '/app/settings', icon: Settings },
   ];
 
   return (
@@ -51,7 +51,7 @@ export function Sidebar({ isOpen, onClose }) {
               localStorage.removeItem('checkoutfix_token');
               localStorage.removeItem('checkoutfix_user');
               clearStoredPreferences();
-              window.location.href = '/login';
+              window.location.href = '/';
             }}
           >
             <LogOut size={20} className="nav-icon" />
