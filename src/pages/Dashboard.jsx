@@ -6,10 +6,13 @@ import { StoreCard } from '../components/dashboard/StoreCard';
 import { AddStoreModal } from '../components/dashboard/AddStoreModal';
 import { API_BASE } from '../config';
 import { getStoredPreferences } from '../lib/userPreferences';
+import { getStoredSubscription, persistSubscription } from '../lib/session';
+import { openBillingPortal, startCheckout } from '../lib/billing';
 import '../components/dashboard/Dashboard.css';
 
 export default function Dashboard() {
   const [stores, setStores] = useState([]);
+  const [subscription, setSubscription] = useState(getStoredSubscription());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -28,6 +31,19 @@ export default function Dashboard() {
       }
       const data = text ? JSON.parse(text) : { stores: [] };
       setStores(data.stores || []);
+      const profileRes = await fetch(`${API_BASE}/users/${localStorage.getItem('checkoutfix_user')}/subscription`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('checkoutfix_token')}`
+        }
+      });
+      const profileText = await profileRes.text();
+      if (profileRes.ok) {
+        const profileData = profileText ? JSON.parse(profileText) : {};
+        if (profileData.subscription) {
+          setSubscription(profileData.subscription);
+          persistSubscription(profileData.subscription);
+        }
+      }
     } catch (err) {
       setError(err.message);
       toast.error('Failed to load your stores!');
@@ -40,8 +56,12 @@ export default function Dashboard() {
     fetchStores();
   }, []);
 
-  const handleStoreAdded = (newStore) => {
+  const handleStoreAdded = (newStore, nextSubscription) => {
     setStores([newStore, ...stores]);
+    if (nextSubscription) {
+      setSubscription(nextSubscription);
+      persistSubscription(nextSubscription);
+    }
     setIsModalOpen(false);
     toast.success('Store added successfully!');
   };
@@ -78,12 +98,62 @@ export default function Dashboard() {
     }
   };
 
+  const handleBillingAction = async () => {
+    try {
+      if (subscription.plan === 'pro') {
+        await openBillingPortal();
+        return;
+      }
+
+      await startCheckout();
+    } catch (err) {
+      toast.error(err.message);
+    }
+  };
+
+  const scansRemainingLabel = subscription.scanLimit === null
+    ? 'Unlimited'
+    : `${subscription.scansRemaining} left`;
+  const canAddStore = stores.length < (subscription.storesLimit ?? 1);
+
   return (
     <div>
       <div className="dashboard-header">
-        <h1 className="dashboard-title">Your Stores</h1>
-        <Button variant="primary" onClick={() => setIsModalOpen(true)}>+ Add Store</Button>
+        <div>
+          <h1 className="dashboard-title">Your Stores</h1>
+          <p className="dashboard-subtitle">Monitor plan usage, store capacity, and scan availability from one view.</p>
+        </div>
+        <Button
+          variant="primary"
+          onClick={() => setIsModalOpen(true)}
+          disabled={!canAddStore}
+        >
+          + Add Store
+        </Button>
       </div>
+
+      <div className="dashboard-plan-panel">
+        <div className="dashboard-plan-copy">
+          <div className="dashboard-plan-pill">{subscription.plan === 'pro' ? 'Pro Plan' : 'Free Plan'}</div>
+          <div className="dashboard-plan-metrics">
+            <span><strong>{scansRemainingLabel}</strong> scans available</span>
+            <span><strong>{stores.length}/{subscription.storesLimit ?? 1}</strong> stores in use</span>
+            <span><strong>{(subscription.allowedFrequencies || ['daily']).join(', ')}</strong> scan cadence</span>
+          </div>
+        </div>
+        <Button
+          variant={subscription.plan === 'pro' ? 'outline' : 'primary'}
+          onClick={handleBillingAction}
+        >
+          {subscription.plan === 'pro' ? 'Manage Billing' : 'Unlock Pro'}
+        </Button>
+      </div>
+
+      {!canAddStore && (
+        <div className="dashboard-limit-banner">
+          Your current plan has reached its store limit. Upgrade to add more monitored stores.
+        </div>
+      )}
 
       {loading && <p>Loading stores...</p>}
       {error && <p style={{ color: 'var(--color-error)' }}>Error loading stores: {error}</p>}
@@ -91,7 +161,7 @@ export default function Dashboard() {
       {!loading && !error && stores.length === 0 && (
         <div style={{ textAlign: 'center', padding: '3rem', backgroundColor: 'var(--color-surface)', borderRadius: 'var(--radius)' }}>
           <p style={{ color: 'var(--color-text-secondary)', marginBottom: '1rem' }}>You don't have any stores yet.</p>
-          <Button variant="outline" onClick={() => setIsModalOpen(true)}>Add your first store</Button>
+          <Button variant="outline" onClick={() => setIsModalOpen(true)} disabled={!canAddStore}>Add your first store</Button>
         </div>
       )}
 
@@ -110,6 +180,7 @@ export default function Dashboard() {
         isOpen={isModalOpen} 
         onClose={() => setIsModalOpen(false)} 
         onSave={handleStoreAdded} 
+        subscription={subscription}
       />
     </div>
   );

@@ -1,6 +1,12 @@
 const Store = require('../models/store.model');
 const User = require('../models/user.model');
 const mongoose = require('mongoose');
+const {
+  buildSubscriptionPayload,
+  canCreateStore,
+  ensureSubscriptionState,
+  validateScanFrequency
+} = require('../services/subscription.service');
 
 exports.createStore = async (req, res) => {
   try {
@@ -18,9 +24,31 @@ exports.createStore = async (req, res) => {
 
     const resolvedAlertEmail = (alertEmail || user.defaultAlertEmail || user.email || '').trim().toLowerCase();
     const resolvedScanFrequency = scanFrequency || user.defaultScanFrequency || 'hourly';
+    const hydratedUser = await User.findById(userId);
+
+    ensureSubscriptionState(hydratedUser);
 
     if (!url || !resolvedAlertEmail) {
       return res.status(400).json({ error: 'URL and alertEmail are required' });
+    }
+
+    const frequencyCheck = validateScanFrequency(hydratedUser, resolvedScanFrequency);
+    if (!frequencyCheck.allowed) {
+      return res.status(403).json({
+        error: frequencyCheck.reason,
+        code: frequencyCheck.code,
+        subscription: buildSubscriptionPayload(hydratedUser)
+      });
+    }
+
+    const storeCount = await Store.countDocuments({ userId });
+    const storeLimitCheck = canCreateStore(hydratedUser, storeCount);
+    if (!storeLimitCheck.allowed) {
+      return res.status(403).json({
+        error: storeLimitCheck.reason,
+        code: storeLimitCheck.code,
+        subscription: buildSubscriptionPayload(hydratedUser)
+      });
     }
 
     const newStore = new Store({
@@ -31,7 +59,14 @@ exports.createStore = async (req, res) => {
     });
 
     await newStore.save();
-    res.status(201).json({ message: 'Store created successfully', store: newStore });
+    hydratedUser.markModified('subscription');
+    await hydratedUser.save();
+
+    res.status(201).json({
+      message: 'Store created successfully',
+      store: newStore,
+      subscription: buildSubscriptionPayload(hydratedUser)
+    });
   } catch (err) {
     console.error('Create store error:', err);
     res.status(500).json({ error: 'Server error while creating store' });

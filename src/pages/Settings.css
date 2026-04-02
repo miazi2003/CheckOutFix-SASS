@@ -63,6 +63,12 @@
     linear-gradient(180deg, color-mix(in srgb, var(--color-success-bg) 26%, var(--color-surface)), var(--color-surface));
 }
 
+.settings-card-subscription {
+  background:
+    radial-gradient(circle at top right, rgba(14, 165, 233, 0.14), transparent 30%),
+    linear-gradient(180deg, color-mix(in srgb, var(--color-surface) 80%, var(--color-bg)), var(--color-surface));
+}
+
 .settings-card-danger {
   border-color: color-mix(in srgb, var(--color-error) 35%, var(--color-border));
 }
@@ -229,6 +235,45 @@
   font-size: 0.92rem;
 }
 
+.settings-plan-summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: calc(var(--radius-sm) + 2px);
+  background-color: color-mix(in srgb, var(--color-bg) 74%, transparent);
+}
+
+.settings-plan-main {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.settings-plan-badge {
+  min-width: 4.5rem;
+  padding: 0.55rem 0.8rem;
+  border-radius: 999px;
+  background-color: var(--color-text-primary);
+  color: var(--color-surface);
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.settings-plan-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.settings-plan-copy span {
+  color: var(--color-text-secondary);
+  font-size: 0.92rem;
+}
+
 .settings-actions {
   grid-column: span 2;
   display: flex;
@@ -255,6 +300,12 @@
   .settings-segmented,
   .settings-feature-list {
     grid-template-columns: 1fr;
+  }
+
+  .settings-plan-summary,
+  .settings-plan-main {
+    flex-direction: column;
+    align-items: flex-start;
   }
 }
 

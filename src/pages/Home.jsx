@@ -87,7 +87,7 @@ export default function Home() {
     <div className="home-page">
       <header className="home-header">
         <Link to="/" className="home-brand">
-          <span className="home-brand-mark">C</span>
+          <span className="home-brand-mark">S</span>
           <span>Scanivo</span>
         </Link>
 
@@ -112,7 +112,7 @@ export default function Home() {
               <Sparkles size={16} />
               <span>Conversion monitoring for modern storefronts</span>
             </div>
-            <h1>Scan your store for free before checkout problems cost you revenue.</h1>
+            <h1>Scan your store before checkout problems cost you revenue.</h1>
             <p>
               Scanivo helps teams monitor checkout reliability, catch warning signals early, and move from blind debugging to confident operations.
             </p>

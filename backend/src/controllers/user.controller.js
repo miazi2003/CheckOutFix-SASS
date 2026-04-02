@@ -2,12 +2,19 @@ const User = require('../models/user.model');
 const Store = require('../models/store.model');
 const ScanResult = require('../models/scanResult.model');
 const mongoose = require('mongoose');
+const {
+  buildSubscriptionPayload,
+  ensureSubscriptionState,
+  validateScanFrequency
+} = require('../services/subscription.service');
 
 function isAuthorizedUser(req, id) {
   return req.user?.userId && req.user.userId === id;
 }
 
 function serializeUser(user) {
+  ensureSubscriptionState(user);
+
   return {
     id: user._id,
     name: user.name || '',
@@ -17,6 +24,7 @@ function serializeUser(user) {
     dashboardLayout: user.dashboardLayout || 'comfortable',
     defaultAlertEmail: user.defaultAlertEmail || '',
     defaultScanFrequency: user.defaultScanFrequency || 'hourly',
+    subscription: buildSubscriptionPayload(user),
     notifications: {
       emailAlerts: user.notifications?.emailAlerts ?? true,
       issueAlerts: user.notifications?.issueAlerts ?? true,
@@ -38,6 +46,9 @@ exports.getProfile = async (req, res) => {
     }
     const user = await User.findById(id).select('-password');
     if (!user) return res.status(404).json({ error: 'User not found' });
+    ensureSubscriptionState(user);
+    user.markModified('subscription');
+    await user.save();
     res.status(200).json({ user: serializeUser(user) });
   } catch (err) {
     res.status(500).json({ error: 'Failed to fetch user profile' });
@@ -95,6 +106,17 @@ exports.updateProfile = async (req, res) => {
       updateDoc.defaultAlertEmail = defaultAlertEmail.trim().toLowerCase();
     }
     if (defaultScanFrequency) {
+      const currentUser = await User.findById(id);
+      ensureSubscriptionState(currentUser);
+      const frequencyCheck = validateScanFrequency(currentUser, defaultScanFrequency);
+      if (!frequencyCheck.allowed) {
+        return res.status(403).json({
+          error: frequencyCheck.reason,
+          code: frequencyCheck.code,
+          subscription: buildSubscriptionPayload(currentUser)
+        });
+      }
+
       updateDoc.defaultScanFrequency = defaultScanFrequency;
     }
     if (notifications && typeof notifications === 'object') {
@@ -117,10 +139,38 @@ exports.updateProfile = async (req, res) => {
       updateDoc,
       { new: true, runValidators: true }
     ).select('-password');
+    ensureSubscriptionState(updatedUser);
+    updatedUser.markModified('subscription');
+    await updatedUser.save();
 
     res.status(200).json({ message: 'Profile updated', user: serializeUser(updatedUser) });
   } catch (err) {
     res.status(500).json({ error: 'Server error updating profile' });
+  }
+};
+
+exports.getSubscription = async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ error: 'Invalid user id' });
+    }
+    if (!isAuthorizedUser(req, id)) {
+      return res.status(403).json({ error: 'You can only access your own subscription' });
+    }
+
+    const user = await User.findById(id).select('-password');
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    ensureSubscriptionState(user);
+    user.markModified('subscription');
+    await user.save();
+
+    res.status(200).json({ subscription: buildSubscriptionPayload(user) });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch subscription details' });
   }
 };
 

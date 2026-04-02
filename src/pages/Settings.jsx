@@ -7,6 +7,8 @@ import { Input } from '../components/ui/Input';
 import { Button } from '../components/ui/Button';
 import { API_BASE } from '../config';
 import { clearStoredPreferences, persistUserPreferences } from '../lib/userPreferences';
+import { clearStoredSession, persistSubscription } from '../lib/session';
+import { openBillingPortal, refreshBillingStatus, startCheckout } from '../lib/billing';
 import './Settings.css';
 
 const defaultForm = {
@@ -22,7 +24,8 @@ const defaultForm = {
     issueAlerts: true,
     performanceAlerts: true,
     weeklySummary: false
-  }
+  },
+  subscription: null
 };
 
 const timezoneOptions = [
@@ -81,7 +84,7 @@ export default function Settings() {
         const text = await res.text();
         if (!res.ok) {
           let errMsg = 'Failed to load profile';
-          try { errMsg = JSON.parse(text).error; } catch (_error) {}
+          try { errMsg = JSON.parse(text).error; } catch {}
           throw new Error(errMsg);
         }
 
@@ -95,6 +98,7 @@ export default function Settings() {
             dashboardLayout: data.user.dashboardLayout || 'comfortable',
             defaultAlertEmail: data.user.defaultAlertEmail || '',
             defaultScanFrequency: data.user.defaultScanFrequency || 'hourly',
+            subscription: data.user.subscription || null,
             notifications: {
               emailAlerts: data.user.notifications?.emailAlerts ?? true,
               issueAlerts: data.user.notifications?.issueAlerts ?? true,
@@ -103,8 +107,9 @@ export default function Settings() {
             }
           });
           persistUserPreferences(data.user);
+          persistSubscription(data.user.subscription);
         }
-      } catch (_error) {
+      } catch {
         toast.error('Could not load profile settings');
       } finally {
         setLoading(false);
@@ -112,6 +117,39 @@ export default function Settings() {
     };
 
     fetchProfile();
+  }, [userId]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const billingState = params.get('billing');
+
+    if (!billingState || !userId) {
+      return;
+    }
+
+    const syncBillingState = async () => {
+      try {
+        const nextSubscription = await refreshBillingStatus();
+        if (nextSubscription) {
+          setForm((current) => ({
+            ...current,
+            subscription: nextSubscription
+          }));
+        }
+
+        if (billingState === 'success') {
+          toast.success('Billing update received. Your plan status has been refreshed.');
+        } else if (billingState === 'cancelled') {
+          toast('Checkout was cancelled.');
+        }
+      } catch (err) {
+        toast.error(err.message);
+      } finally {
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+    };
+
+    syncBillingState();
   }, [userId]);
 
   const setField = (field, value) => {
@@ -146,7 +184,7 @@ export default function Settings() {
 
       if (!res.ok) {
         let errMsg = 'Update failed';
-        try { errMsg = JSON.parse(text).error; } catch (_error) {}
+        try { errMsg = JSON.parse(text).error; } catch {}
         throw new Error(errMsg);
       }
 
@@ -160,6 +198,7 @@ export default function Settings() {
           dashboardLayout: data.user.dashboardLayout || 'comfortable',
           defaultAlertEmail: data.user.defaultAlertEmail || '',
           defaultScanFrequency: data.user.defaultScanFrequency || 'hourly',
+          subscription: data.user.subscription || null,
           notifications: {
             emailAlerts: data.user.notifications?.emailAlerts ?? true,
             issueAlerts: data.user.notifications?.issueAlerts ?? true,
@@ -168,6 +207,7 @@ export default function Settings() {
           }
         });
         persistUserPreferences(data.user);
+        persistSubscription(data.user.subscription);
       }
 
       toast.success('Settings saved successfully.', { id: saveToast });
@@ -201,13 +241,12 @@ export default function Settings() {
       const text = await res.text();
       if (!res.ok) {
         let errMsg = 'Failed to delete account';
-        try { errMsg = JSON.parse(text).error; } catch (_error) {}
+        try { errMsg = JSON.parse(text).error; } catch {}
         throw new Error(errMsg);
       }
 
       toast.success('Account completely wiped.', { id: delToast });
-      localStorage.removeItem('checkoutfix_user');
-      localStorage.removeItem('checkoutfix_token');
+      clearStoredSession();
       clearStoredPreferences();
 
       setTimeout(() => {
@@ -218,7 +257,24 @@ export default function Settings() {
     }
   };
 
+  const handleBillingAction = async () => {
+    try {
+      if (isProPlan) {
+        await openBillingPortal();
+        return;
+      }
+
+      await startCheckout();
+    } catch (err) {
+      toast.error(err.message);
+    }
+  };
+
   if (loading) return <div style={{ padding: '2rem' }}>Loading settings...</div>;
+
+  const subscription = form.subscription;
+  const isProPlan = subscription?.plan === 'pro';
+  const allowedFrequencies = subscription?.allowedFrequencies || ['daily'];
 
   return (
     <div className="settings-page">
@@ -233,6 +289,53 @@ export default function Settings() {
       </div>
 
       <form className="settings-grid" onSubmit={handleUpdate}>
+        <Card className="settings-card settings-card-wide settings-card-subscription">
+          <CardHeader>
+            <SectionHeader
+              icon={ShieldAlert}
+              title="Subscription"
+              subtitle="Track plan limits now, then connect checkout and billing next."
+            />
+          </CardHeader>
+          <CardContent className="settings-card-content">
+            <div className="settings-plan-summary">
+              <div className="settings-plan-main">
+                <div className="settings-plan-badge">{isProPlan ? 'Pro' : 'Free'}</div>
+                <div className="settings-plan-copy">
+                  <strong>{isProPlan ? 'Premium monitoring unlocked' : 'Starter limits are active'}</strong>
+                  <span>
+                    {isProPlan
+                      ? 'Unlimited manual and scheduled scans with full monitoring controls.'
+                      : `${subscription?.scansRemaining ?? 0} of ${subscription?.scanLimit ?? 5} scans remaining this period.`}
+                  </span>
+                </div>
+              </div>
+              <Button
+                type="button"
+                variant={isProPlan ? 'outline' : 'primary'}
+                onClick={handleBillingAction}
+              >
+                {isProPlan ? 'Manage Billing' : 'Upgrade to Pro'}
+              </Button>
+            </div>
+
+            <div className="settings-feature-list">
+              <div className="settings-feature-item">
+                Plan status: <strong>{subscription?.status || 'inactive'}</strong>
+              </div>
+              <div className="settings-feature-item">
+                Monitored stores: <strong>{subscription?.storesLimit ?? 1}</strong> included
+              </div>
+              <div className="settings-feature-item">
+                Allowed scan cadence: <strong>{(subscription?.allowedFrequencies || ['daily']).join(', ')}</strong>
+              </div>
+              <div className="settings-feature-item">
+                Usage resets: <strong>{subscription?.resetAt ? new Date(subscription.resetAt).toLocaleDateString() : 'next cycle'}</strong>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         <Card className="settings-card settings-card-wide">
           <CardHeader>
             <SectionHeader
@@ -290,9 +393,11 @@ export default function Settings() {
                   value={form.defaultScanFrequency}
                   onChange={(e) => setField('defaultScanFrequency', e.target.value)}
                 >
-                  <option value="hourly">Every 1 hour</option>
-                  <option value="6h">Every 6 hours</option>
-                  <option value="daily">Daily</option>
+                  {allowedFrequencies.map((frequency) => (
+                    <option key={frequency} value={frequency}>
+                      {frequency === 'hourly' ? 'Every 1 hour' : frequency === '6h' ? 'Every 6 hours' : 'Daily'}
+                    </option>
+                  ))}
                 </select>
               </div>
 

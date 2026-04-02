@@ -5,6 +5,7 @@ import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { API_BASE } from '../config';
 import { persistUserPreferences } from '../lib/userPreferences';
+import { persistSubscription } from '../lib/session';
 import './Auth.css';
 
 export default function Register() {
@@ -28,7 +29,7 @@ export default function Register() {
       
       if (!res.ok) {
         let errMsg = `Server unreachable (${res.status})`;
-        try { errMsg = JSON.parse(text).error; } catch(e) {}
+        try { errMsg = JSON.parse(text).error; } catch {}
         throw new Error(errMsg);
       }
 
@@ -37,6 +38,7 @@ export default function Register() {
       localStorage.setItem('checkoutfix_user', data.userId);
       localStorage.setItem('checkoutfix_token', data.token);
       persistUserPreferences(data.user || { theme: data.theme });
+      persistSubscription(data.user?.subscription);
       toast.success('Account created successfully!');
       navigate('/app');
     } catch (err) {

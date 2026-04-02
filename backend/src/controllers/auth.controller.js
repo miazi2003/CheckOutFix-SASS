@@ -1,7 +1,10 @@
 const User = require('../models/user.model');
 const bcrypt = require('bcrypt');
+const { buildSubscriptionPayload, ensureSubscriptionState } = require('../services/subscription.service');
 
 function buildAuthPayload(user, token, statusMessage) {
+  ensureSubscriptionState(user);
+
   return {
     message: statusMessage,
     userId: user._id,
@@ -15,6 +18,7 @@ function buildAuthPayload(user, token, statusMessage) {
       dashboardLayout: user.dashboardLayout || 'comfortable',
       defaultAlertEmail: user.defaultAlertEmail || '',
       defaultScanFrequency: user.defaultScanFrequency || 'hourly',
+      subscription: buildSubscriptionPayload(user),
       notifications: {
         emailAlerts: user.notifications?.emailAlerts ?? true,
         issueAlerts: user.notifications?.issueAlerts ?? true,
@@ -41,6 +45,7 @@ exports.register = async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
     const newUser = new User({ name: name?.trim() || '', email, password: hashedPassword });
+    ensureSubscriptionState(newUser);
     await newUser.save();
 
     // Generate token after register

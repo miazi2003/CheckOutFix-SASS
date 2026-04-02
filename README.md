@@ -63,6 +63,10 @@ Backend environment variables:
 - `EMAIL_USER=...`
 - `EMAIL_PASS=...`
 - `CORS_ORIGINS=http://localhost:5173,http://127.0.0.1:5173,https://your-frontend-project.vercel.app`
+- `FRONTEND_URL=https://your-frontend-project.vercel.app`
+- `STRIPE_SECRET_KEY=sk_live_or_test_...`
+- `STRIPE_WEBHOOK_SECRET=whsec_...`
+- `STRIPE_PRICE_ID_PRO_MONTHLY=price_...`
 
 Backend health check after deploy:
 
@@ -73,6 +77,15 @@ Backend health check after deploy:
 - The frontend production build now requires `VITE_API_BASE_URL`. If it is missing, the build fails intentionally.
 - The backend Vercel entrypoint is `backend/api/index.js`.
 - The backend allows only origins listed in `CORS_ORIGINS`.
+- Stripe webhook endpoint: `https://your-backend-project.vercel.app/api/billing/webhook`
+- Stripe success/cancel redirects return to `https://your-frontend-project.vercel.app/app/settings`
+
+## Billing flow
+
+- `POST /api/billing/checkout-session` creates a Stripe Checkout session for the authenticated user.
+- `POST /api/billing/portal-session` opens the Stripe billing portal for existing paid customers.
+- `GET /api/billing/status` returns the current server-side billing/subscription state.
+- `POST /api/billing/webhook` upgrades or downgrades the stored plan based on Stripe subscription events.
 
 ## Limitation
 

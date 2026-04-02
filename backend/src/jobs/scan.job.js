@@ -1,8 +1,10 @@
 const cron = require('node-cron');
 const Store = require('../models/store.model');
 const ScanResult = require('../models/scanResult.model');
+const User = require('../models/user.model');
 const scanService = require('../services/scan.service');
 const emailService = require('../services/email.service');
+const { canRunScan, recordSuccessfulScan, validateScanFrequency } = require('../services/subscription.service');
 
 // Map frequency constants to cron-readable intervals logic
 const shouldRunNow = (frequency, currentHour) => {
@@ -26,6 +28,25 @@ exports.initCronJobs = () => {
           continue;
         }
 
+        if (!store.userId) {
+          continue;
+        }
+
+        const user = await User.findById(store.userId);
+        if (!user) {
+          continue;
+        }
+
+        const frequencyCheck = validateScanFrequency(user, store.scanFrequency);
+        if (!frequencyCheck.allowed) {
+          continue;
+        }
+
+        const scanAccess = canRunScan(user);
+        if (!scanAccess.allowed) {
+          continue;
+        }
+
         console.log(`[CRON] Scanning store: ${store.url}`);
 
         try {
@@ -37,8 +58,10 @@ exports.initCronJobs = () => {
           });
           
           await scanRecord.save();
+          recordSuccessfulScan(user);
+          await user.save();
 
-          if (result.status === 'broken') {
+          if (result.status === 'issue') {
              await emailService.sendAlertEmail(store, result);
           }
         } catch (scanErr) {

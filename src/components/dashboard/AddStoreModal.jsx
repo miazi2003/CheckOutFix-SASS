@@ -4,8 +4,9 @@ import { Input } from '../ui/Input';
 import { Button } from '../ui/Button';
 import { API_BASE } from '../../config';
 import { getStoredPreferences } from '../../lib/userPreferences';
+import { persistSubscription } from '../../lib/session';
 
-export function AddStoreModal({ isOpen, onClose, onSave }) {
+export function AddStoreModal({ isOpen, onClose, onSave, subscription }) {
   const [url, setUrl] = useState('');
   const [alertEmail, setAlertEmail] = useState('');
   const [scanFrequency, setScanFrequency] = useState('hourly');
@@ -17,8 +18,14 @@ export function AddStoreModal({ isOpen, onClose, onSave }) {
 
     const preferences = getStoredPreferences();
     setAlertEmail(preferences.defaultAlertEmail || '');
-    setScanFrequency(preferences.defaultScanFrequency || 'hourly');
-  }, [isOpen]);
+    const preferredFrequency = preferences.defaultScanFrequency || 'hourly';
+    const allowedFrequencies = subscription?.allowedFrequencies || ['daily'];
+    setScanFrequency(
+      allowedFrequencies.includes(preferredFrequency)
+        ? preferredFrequency
+        : allowedFrequencies[0]
+    );
+  }, [isOpen, subscription]);
 
   if (!isOpen) return null;
 
@@ -40,18 +47,22 @@ export function AddStoreModal({ isOpen, onClose, onSave }) {
       
       if (!res.ok) {
         let errMsg = `Server unreachable (${res.status})`;
-        try { errMsg = JSON.parse(text).error; } catch(e) {}
+        try { errMsg = JSON.parse(text).error; } catch {}
         throw new Error(errMsg);
       }
       
       const data = JSON.parse(text);
       
-      onSave(data.store);
+      if (data.subscription) {
+        persistSubscription(data.subscription);
+      }
+
+      onSave(data.store, data.subscription);
       
       // Reset form
       setUrl('');
       setAlertEmail(getStoredPreferences().defaultAlertEmail || '');
-      setScanFrequency(getStoredPreferences().defaultScanFrequency || 'hourly');
+      setScanFrequency((subscription?.allowedFrequencies || ['daily'])[0]);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -92,9 +103,11 @@ export function AddStoreModal({ isOpen, onClose, onSave }) {
             <div className="ui-input-wrapper">
               <label style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--color-text-primary)' }}>Scan Frequency</label>
               <select className="ui-input" value={scanFrequency} onChange={(e) => setScanFrequency(e.target.value)}>
-                <option value="hourly">Every 1 hour</option>
-                <option value="6h">Every 6 hours</option>
-                <option value="daily">Daily</option>
+                {(subscription?.allowedFrequencies || ['daily']).map((frequency) => (
+                  <option key={frequency} value={frequency}>
+                    {frequency === 'hourly' ? 'Every 1 hour' : frequency === '6h' ? 'Every 6 hours' : 'Daily'}
+                  </option>
+                ))}
               </select>
             </div>
           </div>

@@ -61,6 +61,58 @@ const userSchema = new mongoose.Schema({
       type: Boolean,
       default: false
     }
+  },
+  subscription: {
+    plan: {
+      type: String,
+      enum: ['free', 'pro'],
+      default: 'free'
+    },
+    status: {
+      type: String,
+      enum: ['inactive', 'trialing', 'active', 'past_due', 'canceled'],
+      default: 'inactive'
+    },
+    scansUsed: {
+      type: Number,
+      default: 0,
+      min: 0
+    },
+    scanLimit: {
+      type: Number,
+      default: 5,
+      min: 0
+    },
+    resetAt: {
+      type: Date,
+      default: () => {
+        const now = new Date();
+        return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
+      }
+    },
+    storesLimit: {
+      type: Number,
+      default: 1,
+      min: 1
+    },
+    stripeCustomerId: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    stripeSubscriptionId: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    currentPeriodStart: {
+      type: Date,
+      default: Date.now
+    },
+    currentPeriodEnd: {
+      type: Date,
+      default: null
+    }
   }
 }, { timestamps: true });
 

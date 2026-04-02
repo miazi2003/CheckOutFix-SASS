@@ -4,9 +4,11 @@ const dotenv = require('dotenv');
 
 const connectDB = require('./src/config/db');
 const authRoutes = require('./src/routes/auth.routes');
+const billingRoutes = require('./src/routes/billing.routes');
 const storeRoutes = require('./src/routes/store.routes');
 const scanRoutes = require('./src/routes/scan.routes');
 const userRoutes = require('./src/routes/user.routes');
+const billingController = require('./src/controllers/billing.controller');
 
 dotenv.config();
 
@@ -48,6 +50,15 @@ app.use(
 );
 app.options(/.*/, cors(corsOptions));
 
+app.post('/api/billing/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+  try {
+    await connectDB();
+    return billingController.handleWebhook(req, res);
+  } catch (error) {
+    return res.status(500).json({ error: 'Database connection failed' });
+  }
+});
+
 app.use(express.json());
 
 app.get('/api/health', async (_req, res) => {
@@ -67,6 +78,15 @@ app.use('/api/auth', async (req, res, next) => {
     next(error);
   }
 }, authRoutes);
+
+app.use('/api/billing', async (req, res, next) => {
+  try {
+    await connectDB();
+    next();
+  } catch (error) {
+    next(error);
+  }
+}, billingRoutes);
 
 app.use('/api/stores', async (req, res, next) => {
   try {

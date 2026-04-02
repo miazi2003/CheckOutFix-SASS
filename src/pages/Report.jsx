@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/Card';
@@ -6,6 +6,7 @@ import { Badge } from '../components/ui/Badge';
 import { AlertCircle, CheckCircle2, XCircle, ArrowLeft, Zap, Globe, RefreshCw } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { API_BASE } from '../config';
+import { getStoredSubscription, persistSubscription } from '../lib/session';
 import './Report.css';
 
 export default function Report() {
@@ -14,8 +15,10 @@ export default function Report() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isScanning, setIsScanning] = useState(false);
+  const [subscription, setSubscription] = useState(getStoredSubscription());
+  const isScanLimitReached = subscription.plan !== 'pro' && (subscription.scansRemaining ?? 0) <= 0;
 
-  const fetchHistory = async () => {
+  const fetchHistory = useCallback(async () => {
     try {
       const res = await fetch(`${API_BASE}/scan/${id}`, {
         headers: {
@@ -26,7 +29,7 @@ export default function Report() {
       
       if (!res.ok) {
         let errMsg = `Server unreachable (${res.status})`;
-        try { errMsg = JSON.parse(text).error || 'Failed to fetch report'; } catch(e) {}
+        try { errMsg = JSON.parse(text).error || 'Failed to fetch report'; } catch {}
         throw new Error(errMsg);
       }
       const data = JSON.parse(text);
@@ -42,13 +45,47 @@ export default function Report() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
 
   useEffect(() => {
     fetchHistory();
-  }, [id]);
+  }, [fetchHistory]);
+
+  useEffect(() => {
+    const fetchSubscription = async () => {
+      const userId = localStorage.getItem('checkoutfix_user');
+
+      try {
+        const res = await fetch(`${API_BASE}/users/${userId}/subscription`, {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem('checkoutfix_token')}`
+          }
+        });
+        const text = await res.text();
+
+        if (!res.ok) {
+          return;
+        }
+
+        const data = text ? JSON.parse(text) : {};
+        if (data.subscription) {
+          setSubscription(data.subscription);
+          persistSubscription(data.subscription);
+        }
+      } catch {
+        // Ignore subscription refresh failures here and keep cached values.
+      }
+    };
+
+    fetchSubscription();
+  }, []);
 
   const handleRunScan = async () => {
+    if (isScanLimitReached) {
+      toast.error('You have used all free scans for this cycle. Upgrade to keep scanning.');
+      return;
+    }
+
     setIsScanning(true);
     const scanToast = toast.loading('Running full checkout automation scan...', { duration: Infinity });
     try {
@@ -63,9 +100,18 @@ export default function Report() {
       if (res.ok) {
         toast.dismiss(scanToast);
         toast.success('Scan completed successfully!');
+        const data = await res.json();
+        if (data.subscription) {
+          setSubscription(data.subscription);
+          persistSubscription(data.subscription);
+        }
         await fetchHistory(); // Refresh to get the new scan
       } else {
         const data = await res.json();
+        if (data.subscription) {
+          setSubscription(data.subscription);
+          persistSubscription(data.subscription);
+        }
         toast.error('Scan failed: ' + data.error, { id: scanToast });
       }
     } catch (err) {
@@ -83,8 +129,13 @@ export default function Report() {
       <div style={{ padding: '2rem', textAlign: 'center' }}>
         <Link to="/" className="text-secondary" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', marginBottom: '2rem' }}><ArrowLeft size={16} /> Back to Dashboard</Link>
         <h2 style={{ marginBottom: '1rem' }}>No scans have been run for this store yet.</h2>
+        <p className="text-secondary" style={{ marginBottom: '1rem' }}>
+          {subscription.plan === 'pro'
+            ? 'Your Pro plan can run scans any time.'
+            : `${subscription.scansRemaining} free scans remain in this cycle.`}
+        </p>
         <Button variant="primary" onClick={handleRunScan} disabled={isScanning}>
-          {isScanning ? 'Running Scan...' : 'Trigger Manual Scan Now'}
+          {isScanning ? 'Running Scan...' : isScanLimitReached ? 'Free Limit Reached' : 'Trigger Manual Scan Now'}
         </Button>
       </div>
     );
@@ -104,11 +155,17 @@ export default function Report() {
           <div className="text-secondary" style={{ fontSize: '0.875rem', marginTop: '0.5rem' }}>Latest scan: {new Date(reportData.createdAt).toLocaleString()}</div>
         </div>
         
-        <Button variant="outline" onClick={handleRunScan} disabled={isScanning}>
+        <Button variant="outline" onClick={handleRunScan} disabled={isScanning || isScanLimitReached}>
           <RefreshCw size={16} style={{ marginRight: '0.5rem', animation: isScanning ? 'spin 1s linear infinite' : 'none' }} /> 
-          {isScanning ? 'Scanning...' : 'Run Scan'}
+          {isScanning ? 'Scanning...' : isScanLimitReached ? 'Limit Reached' : 'Run Scan'}
         </Button>
       </div>
+
+      {subscription.plan !== 'pro' && (
+        <div style={{ marginBottom: '1rem', color: 'var(--color-text-secondary)' }}>
+          {subscription.scansRemaining} of {subscription.scanLimit} free scans remain this cycle.
+        </div>
+      )}
 
       <div className="report-grid">
         {/* Overall Status */}

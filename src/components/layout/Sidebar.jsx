@@ -2,6 +2,7 @@ import React from 'react';
 import { LayoutDashboard, Bell, Settings, LogOut } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import { clearStoredPreferences } from '../../lib/userPreferences';
+import { clearStoredSession } from '../../lib/session';
 import './Layout.css';
 
 export function Sidebar({ isOpen, onClose }) {
@@ -48,8 +49,7 @@ export function Sidebar({ isOpen, onClose }) {
               textAlign: 'left'
             }}
             onClick={() => {
-              localStorage.removeItem('checkoutfix_token');
-              localStorage.removeItem('checkoutfix_user');
+              clearStoredSession();
               clearStoredPreferences();
               window.location.href = '/';
             }}
