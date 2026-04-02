@@ -21,7 +21,7 @@ export default function Notifications() {
 
       if (!res.ok) {
         let errMsg = `Server unreachable (${res.status})`;
-        try { errMsg = JSON.parse(text).error; } catch(e) {}
+        try { errMsg = JSON.parse(text).error; } catch (e) { }
         throw new Error(errMsg);
       }
 
@@ -60,7 +60,7 @@ export default function Notifications() {
   if (error) return <div style={{ padding: '2rem', color: 'var(--color-error)' }}>{error}</div>;
 
   return (
-    <div style={{ maxWidth: '800px' }}>
+    <div style={{ maxWidth: '100%' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
         <h1 style={{ fontSize: '1.5rem', fontWeight: 700 }}>Notifications</h1>
         {alerts.length > 0 && (
@@ -80,7 +80,7 @@ export default function Notifications() {
             const isIssue = alert.status === 'issue';
             const storeUrl = alert.storeId?.url || 'Unknown Store';
             const mainIssue = (alert.issues && alert.issues.length > 0) ? alert.issues[0] : 'Checkout flow failed';
-            
+
             return (
               <div key={alert._id} className="list-item">
                 <div className={`list-item-icon ${isIssue ? 'error' : 'warning'}`}>

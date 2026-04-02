@@ -121,12 +121,27 @@
 
 .list-item-content {
   flex-grow: 1;
+  min-width: 0;
 }
 .list-item-title {
   font-weight: 500;
   color: var(--color-text-primary);
+  max-height: 5.5rem;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 0.35rem;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 .list-item-time {
   font-size: 0.875rem;
   color: var(--color-text-secondary);
+}
+.list-item-title::-webkit-scrollbar {
+  width: 6px;
+}
+.list-item-title::-webkit-scrollbar-thumb {
+  background-color: var(--color-border);
+  border-radius: 999px;
 }
