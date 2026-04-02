@@ -1,9 +1,34 @@
 const User = require('../models/user.model');
 const bcrypt = require('bcrypt');
 
+function buildAuthPayload(user, token, statusMessage) {
+  return {
+    message: statusMessage,
+    userId: user._id,
+    token,
+    user: {
+      id: user._id,
+      name: user.name || '',
+      email: user.email,
+      theme: user.theme,
+      timezone: user.timezone || 'UTC',
+      dashboardLayout: user.dashboardLayout || 'comfortable',
+      defaultAlertEmail: user.defaultAlertEmail || '',
+      defaultScanFrequency: user.defaultScanFrequency || 'hourly',
+      notifications: {
+        emailAlerts: user.notifications?.emailAlerts ?? true,
+        issueAlerts: user.notifications?.issueAlerts ?? true,
+        performanceAlerts: user.notifications?.performanceAlerts ?? true,
+        weeklySummary: user.notifications?.weeklySummary ?? false
+      }
+    },
+    theme: user.theme
+  };
+}
+
 exports.register = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { name, email, password } = req.body;
 
     if (!email || !password) {
       return res.status(400).json({ error: 'Email and password are required' });
@@ -15,7 +40,7 @@ exports.register = async (req, res) => {
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
-    const newUser = new User({ email, password: hashedPassword });
+    const newUser = new User({ name: name?.trim() || '', email, password: hashedPassword });
     await newUser.save();
 
     // Generate token after register
@@ -26,7 +51,7 @@ exports.register = async (req, res) => {
       { expiresIn: '7d' }
     );
 
-    res.status(201).json({ message: 'User registered successfully', userId: newUser._id, token, theme: newUser.theme });
+    res.status(201).json(buildAuthPayload(newUser, token, 'User registered successfully'));
   } catch (err) {
     console.error('Registration error:', err);
     res.status(500).json({ error: 'Server error during registration' });
@@ -59,7 +84,7 @@ exports.login = async (req, res) => {
       { expiresIn: '7d' }
     );
 
-    res.status(200).json({ message: 'Login successful', userId: user._id, token, theme: user.theme });
+    res.status(200).json(buildAuthPayload(user, token, 'Login successful'));
   } catch (err) {
     console.error('Login error:', err);
     res.status(500).json({ error: 'Server error during login' });

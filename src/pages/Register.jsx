@@ -4,9 +4,11 @@ import toast from 'react-hot-toast';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { API_BASE } from '../config';
+import { persistUserPreferences } from '../lib/userPreferences';
 import './Auth.css';
 
 export default function Register() {
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -20,7 +22,7 @@ export default function Register() {
       const res = await fetch(`${API_BASE}/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
+        body: JSON.stringify({ name, email, password })
       });
       const text = await res.text();
       
@@ -34,13 +36,7 @@ export default function Register() {
 
       localStorage.setItem('checkoutfix_user', data.userId);
       localStorage.setItem('checkoutfix_token', data.token);
-      if (data.theme === 'dark') {
-         localStorage.setItem('checkoutfix_theme', 'dark');
-         document.body.classList.add('dark-mode');
-      } else {
-         localStorage.removeItem('checkoutfix_theme');
-         document.body.classList.remove('dark-mode');
-      }
+      persistUserPreferences(data.user || { theme: data.theme });
       toast.success('Account created successfully!');
       navigate('/');
     } catch (err) {
@@ -57,7 +53,15 @@ export default function Register() {
         <p className="auth-subtitle">Create a new account</p>
 
         <form className="auth-form" onSubmit={handleRegister}>
-          <Input label="Full Name" type="text" id="name" placeholder="John Doe" required />
+          <Input
+            label="Full Name"
+            type="text"
+            id="name"
+            placeholder="John Doe"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            required
+          />
           <Input 
             label="Email address" 
             type="email" 

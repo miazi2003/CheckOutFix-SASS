@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
 import { Input } from '../ui/Input';
 import { Button } from '../ui/Button';
 import { API_BASE } from '../../config';
+import { getStoredPreferences } from '../../lib/userPreferences';
 
 export function AddStoreModal({ isOpen, onClose, onSave }) {
   const [url, setUrl] = useState('');
@@ -10,6 +11,14 @@ export function AddStoreModal({ isOpen, onClose, onSave }) {
   const [scanFrequency, setScanFrequency] = useState('hourly');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const preferences = getStoredPreferences();
+    setAlertEmail(preferences.defaultAlertEmail || '');
+    setScanFrequency(preferences.defaultScanFrequency || 'hourly');
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -41,8 +50,8 @@ export function AddStoreModal({ isOpen, onClose, onSave }) {
       
       // Reset form
       setUrl('');
-      setAlertEmail('');
-      setScanFrequency('hourly');
+      setAlertEmail(getStoredPreferences().defaultAlertEmail || '');
+      setScanFrequency(getStoredPreferences().defaultScanFrequency || 'hourly');
     } catch (err) {
       setError(err.message);
     } finally {

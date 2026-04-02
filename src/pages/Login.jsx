@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { API_BASE } from '../config';
+import { persistUserPreferences } from '../lib/userPreferences';
 import './Auth.css';
 
 export default function Login() {
@@ -34,13 +35,7 @@ export default function Login() {
 
       localStorage.setItem('checkoutfix_user', data.userId);
       localStorage.setItem('checkoutfix_token', data.token);
-      if (data.theme === 'dark') {
-         localStorage.setItem('checkoutfix_theme', 'dark');
-         document.body.classList.add('dark-mode');
-      } else {
-         localStorage.removeItem('checkoutfix_theme');
-         document.body.classList.remove('dark-mode');
-      }
+      persistUserPreferences(data.user || { theme: data.theme });
       toast.success('Welcome back!');
       navigate('/');
     } catch (err) {

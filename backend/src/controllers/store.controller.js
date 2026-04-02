@@ -1,20 +1,33 @@
 const Store = require('../models/store.model');
+const User = require('../models/user.model');
+const mongoose = require('mongoose');
 
 exports.createStore = async (req, res) => {
   try {
     const { url, alertEmail, scanFrequency } = req.body;
+    const userId = req.user?.userId;
 
+    if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(401).json({ error: 'Invalid authenticated user' });
+    }
 
+    const user = await User.findById(userId).lean();
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
 
-    if (!url || !alertEmail) {
+    const resolvedAlertEmail = (alertEmail || user.defaultAlertEmail || user.email || '').trim().toLowerCase();
+    const resolvedScanFrequency = scanFrequency || user.defaultScanFrequency || 'hourly';
+
+    if (!url || !resolvedAlertEmail) {
       return res.status(400).json({ error: 'URL and alertEmail are required' });
     }
 
     const newStore = new Store({
       url,
-      alertEmail,
-      scanFrequency: scanFrequency || 'hourly'
-      // userId
+      alertEmail: resolvedAlertEmail,
+      scanFrequency: resolvedScanFrequency,
+      userId
     });
 
     await newStore.save();
@@ -27,7 +40,28 @@ exports.createStore = async (req, res) => {
 
 exports.getStores = async (req, res) => {
   try {
-    const stores = await Store.find().sort({ createdAt: -1 }).lean();
+    const userId = req.user?.userId;
+    if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(401).json({ error: 'Invalid authenticated user' });
+    }
+
+    const user = await User.findById(userId).lean();
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const claimableEmails = [user.email, user.defaultAlertEmail].filter(Boolean);
+    if (claimableEmails.length > 0) {
+      await Store.updateMany(
+        {
+          userId: { $exists: false },
+          alertEmail: { $in: claimableEmails }
+        },
+        { $set: { userId } }
+      );
+    }
+
+    const stores = await Store.find({ userId }).sort({ createdAt: -1 }).lean();
 
     // Attach the latest scan result to each store
     const ScanResult = require('../models/scanResult.model');
@@ -53,13 +87,17 @@ exports.getStores = async (req, res) => {
 exports.deleteStore = async (req, res) => {
   try {
     const { id } = req.params;
+    const userId = req.user?.userId;
 
     // Ensure ID format is valid to prevent CastErrors
     if (!require('mongoose').Types.ObjectId.isValid(id)) {
       return res.status(400).json({ error: 'Invalid Store ID format' });
     }
+    if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(401).json({ error: 'Invalid authenticated user' });
+    }
 
-    const deletedStore = await Store.findByIdAndDelete(id);
+    const deletedStore = await Store.findOneAndDelete({ _id: id, userId });
 
     if (!deletedStore) {
       return res.status(404).json({ error: 'Store not found' });

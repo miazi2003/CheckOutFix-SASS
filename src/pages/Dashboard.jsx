@@ -5,6 +5,7 @@ import { Button } from '../components/ui/Button';
 import { StoreCard } from '../components/dashboard/StoreCard';
 import { AddStoreModal } from '../components/dashboard/AddStoreModal';
 import { API_BASE } from '../config';
+import { getStoredPreferences } from '../lib/userPreferences';
 import '../components/dashboard/Dashboard.css';
 
 export default function Dashboard() {
@@ -12,6 +13,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const dashboardLayout = getStoredPreferences().dashboardLayout || 'comfortable';
 
   const fetchStores = async () => {
     try {
@@ -93,7 +95,7 @@ export default function Dashboard() {
         </div>
       )}
 
-      <div className="store-grid">
+      <div className={`store-grid ${dashboardLayout === 'compact' ? 'compact' : ''}`}>
         {stores.map(store => (
           <StoreCard key={store._id} store={{
             id: store._id,

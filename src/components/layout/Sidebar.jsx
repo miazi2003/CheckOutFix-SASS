@@ -1,6 +1,7 @@
 import React from 'react';
 import { LayoutDashboard, Bell, Settings, LogOut } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
+import { clearStoredPreferences } from '../../lib/userPreferences';
 import './Layout.css';
 
 export function Sidebar({ isOpen, onClose }) {
@@ -49,8 +50,7 @@ export function Sidebar({ isOpen, onClose }) {
             onClick={() => {
               localStorage.removeItem('checkoutfix_token');
               localStorage.removeItem('checkoutfix_user');
-              localStorage.removeItem('checkoutfix_theme');
-              document.body.classList.remove('dark-mode');
+              clearStoredPreferences();
               window.location.href = '/login';
             }}
           >

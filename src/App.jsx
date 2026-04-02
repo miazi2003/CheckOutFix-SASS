@@ -8,6 +8,7 @@ import Report from './pages/Report';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import { Toaster } from 'react-hot-toast';
+import { applyDashboardLayout, applyTheme } from './lib/userPreferences';
 
 const ProtectedRoute = ({ children }) => {
   const token = localStorage.getItem('checkoutfix_token');
@@ -19,11 +20,8 @@ const ProtectedRoute = ({ children }) => {
 
 function App() {
   useEffect(() => {
-    if (localStorage.getItem('checkoutfix_theme') === 'dark') {
-      document.body.classList.add('dark-mode');
-    } else {
-      document.body.classList.remove('dark-mode');
-    }
+    applyTheme(localStorage.getItem('checkoutfix_theme') === 'dark' ? 'dark' : 'light');
+    applyDashboardLayout(localStorage.getItem('checkoutfix_dashboard_layout') || 'comfortable');
   }, []);
 
   return (

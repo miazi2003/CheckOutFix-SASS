@@ -17,6 +17,20 @@
   gap: 1.5rem;
 }
 
+.store-grid.compact {
+  gap: 1rem;
+}
+
+.store-grid.compact .store-card .card-header,
+.store-grid.compact .store-card .card-content,
+.store-grid.compact .store-card .card-footer {
+  padding: 1rem;
+}
+
+.store-grid.compact .store-card .card-footer {
+  padding-top: 0.85rem;
+}
+
 @media (max-width: 1024px) {
   .store-grid {
     grid-template-columns: repeat(2, 1fr);
