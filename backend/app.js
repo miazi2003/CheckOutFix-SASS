@@ -17,26 +17,36 @@ const defaultAllowedOrigins = [
   'http://127.0.0.1:5173',
 ];
 
+function normalizeOrigin(value) {
+  return value ? value.trim().replace(/\/+$/, '') : value;
+}
+
 const allowedOrigins = (
   process.env.CORS_ORIGINS
-    ? process.env.CORS_ORIGINS.split(',').map((origin) => origin.trim()).filter(Boolean)
-    : defaultAllowedOrigins
+    ? process.env.CORS_ORIGINS.split(',').map(normalizeOrigin).filter(Boolean)
+    : defaultAllowedOrigins.map(normalizeOrigin)
 );
+
+const corsOptions = {
+  origin(origin, callback) {
+    const normalizedOrigin = normalizeOrigin(origin);
+
+    if (!normalizedOrigin || allowedOrigins.includes(normalizedOrigin)) {
+      return callback(null, true);
+    }
+
+    return callback(new Error(`CORS blocked for origin: ${origin}`));
+  },
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'X-Requested-With'],
+  credentials: true,
+  optionsSuccessStatus: 204,
+};
 
 app.use(
-  cors({
-    origin(origin, callback) {
-      if (!origin || allowedOrigins.includes(origin)) {
-        return callback(null, true);
-      }
-
-      return callback(new Error(`CORS blocked for origin: ${origin}`));
-    },
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
-    credentials: true,
-  })
+  cors(corsOptions)
 );
+app.options('*', cors(corsOptions));
 
 app.use(express.json());
 
